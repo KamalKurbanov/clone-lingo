@@ -1,16 +1,17 @@
-import { Tabs } from 'expo-router'
-import React from 'react'
-import { Platform } from 'react-native'
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Platform } from 'react-native';
 
-import AuthGuard from '@/components/AuthGuard'
-import { HapticTab } from '@/components/HapticTab'
-import { IconSymbol } from '@/components/ui/IconSymbol'
-import TabBarBackground from '@/components/ui/TabBarBackground'
-import { Colors } from '@/constants/Colors'
-import { useColorScheme } from '@/hooks/useColorScheme'
+import { HapticTab } from '@/components/HapticTab';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import TabBarBackground from '@/components/ui/TabBarBackground';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import AuthGuard from '@/components/AuthGuard';
+import '../../global.css';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme()
+  const colorScheme = useColorScheme();
 
   return (
     <AuthGuard>
@@ -32,31 +33,52 @@ export default function TabLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: 'Dashboard',
+            title: 'Главная',
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="dashboard" color={color} />
+              <IconSymbol size={28} name="house.fill" color={color} />
             ),
           }}
         />
         <Tabs.Screen
-          name="quiz"
+          name="alphabet"
           options={{
-            title: 'Quiz',
+            title: 'Словарь',
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="extension" color={color} />
+              <IconSymbol size={28} name="book.fill" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="statistics"
+          options={{
+            title: 'Статистика',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={28} name="chart.bar.fill" color={color} />
             ),
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'Profile',
+            title: 'Профиль',
             tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name="account-circle" color={color} />
+              <IconSymbol size={28} name="person.fill" color={color} />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="quiz"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="__quiz"
+          options={{
+            href: null, // Hide from tab bar
           }}
         />
       </Tabs>
     </AuthGuard>
-  )
+  );
 }

@@ -1,56 +1,96 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
-import React, { useState } from 'react'
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native'
+import { useRouter } from 'expo-router';
+import { Controller, useForm } from 'react-hook-form';
+import { View, StyleSheet, Platform } from 'react-native';
 
-import { BaseInput } from '@/components/ui/BaseInput'
-import { BaseText } from '@/components/ui/BaseText'
-import { PrimaryButton } from '@/components/ui/PrimaryButton'
+import { BaseInput } from '@/components/ui/BaseInput';
+import { BaseText } from '@/components/ui/BaseText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { api } from '@/services/https';
+import { LoginParams } from '@/types/auth/model';
+import { User } from '@/types/user/model';
+import { saveTokens } from '@/utils/secure';
+import { useState } from 'react';
 
 export default function SignIn() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const router = useRouter()
+  const { control, handleSubmit } = useForm<LoginParams>();
 
-  // Функция для входа
-  const handleLogin = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('user')
-      if (storedUser) {
-        const user = JSON.parse(storedUser)
-        if (user.email === email && user.password === password) {
-          Alert.alert('Успех', 'Вы успешно вошли!')
-          router.replace('/dashboard') // Переход на главную страницу
-        } else {
-          Alert.alert('Ошибка', 'Неверный email или пароль')
-        }
-      } else {
-        Alert.alert('Ошибка', 'Пользователь не зарегистрирован')
-      }
-    } catch (error) {
-      console.error(error)
-      Alert.alert('Ошибка', 'Что-то пошло не так')
+  const router = useRouter();
+
+  const [isLoading, setLoading] = useState(false);
+
+  const onSubmit = async (data: LoginParams) => {
+    setLoading(true);
+
+    const { data: payload } = await api.post<{
+      access_token: string;
+      refresh_token: string;
+    }>('/auth/login', data);
+
+    if (Platform.OS !== 'web') {
+      await saveTokens(payload.access_token, payload.refresh_token);
+    } else {
+      window.localStorage.setItem('access_token', payload.access_token);
+      window.localStorage.setItem('refresh_token', payload.refresh_token);
     }
-  }
+
+    const { data: user } = await api.get<User>('/users/profile');
+
+    setLoading(false);
+
+    if (!user.languages.length) {
+      router.replace('/languages');
+      return;
+    }
+
+    router.replace('/dashboard');
+  };
 
   return (
     <View style={styles.container}>
       <BaseText variant="headingM" color="main" style={styles.title}>
         Авторизация
       </BaseText>
-      <BaseInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+
+      <Controller
+        control={control}
+        name="email"
+        rules={{
+          required: true,
+        }}
+        render={({ field: { onChange, value } }) => (
+          <BaseInput
+            style={styles.input}
+            placeholder="Email"
+            onChangeText={onChange}
+            value={value || ''}
+          />
+        )}
       />
-      <BaseInput
-        placeholder="Пароль"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
+
+      <Controller
+        control={control}
+        name="password"
+        rules={{
+          required: true,
+        }}
+        render={({ field: { onChange, value } }) => (
+          <BaseInput
+            style={styles.input}
+            placeholder="Пароль"
+            onChangeText={onChange}
+            value={value || ''}
+            secureTextEntry
+          />
+        )}
       />
-      <PrimaryButton title="Войти" onPress={handleLogin} fluid />
+
+      <PrimaryButton
+        title="Войти"
+        onPress={handleSubmit(onSubmit)}
+        fluid
+        disabled={isLoading}
+      />
+
       <PrimaryButton
         title="Нет аккаунта? Зарегистрируйтесь"
         mode="transparent"
@@ -60,27 +100,15 @@ export default function SignIn() {
         fluid
       />
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-  },
-  input: {
-    borderColor: '#ccc',
-    borderRadius: 5,
-    borderWidth: 1,
-    marginBottom: 10,
-    padding: 10,
-  },
-  link: {
-    color: 'blue',
-    marginTop: 20,
-    textAlign: 'center',
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
@@ -88,4 +116,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
-})
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  link: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: 'blue',
+  },
+});

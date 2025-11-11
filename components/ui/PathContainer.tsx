@@ -1,8 +1,8 @@
-import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 
 interface PathContainerProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 const PathContainer: React.FC<PathContainerProps> = ({ children }) => {
@@ -11,33 +11,33 @@ const PathContainer: React.FC<PathContainerProps> = ({ children }) => {
       <View style={stylesPathContainer.line} />
       <View style={stylesPathContainer.items}>{children}</View>
     </View>
-  )
-}
+  );
+};
 
-export default PathContainer
+export default PathContainer;
 
 const stylesPathContainer = StyleSheet.create({
   container: {
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    position: 'relative',
-  },
-  items: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flex: 1,
-    justifyContent: 'space-between',
-    zIndex: 1,
   },
   line: {
-    backgroundColor: '#dcdcdc',
-    height: 2,
-    left: 32,
     position: 'absolute',
-    right: 32,
     top: 20,
+    left: 32,
+    right: 32,
+    height: 2,
+    backgroundColor: '#dcdcdc',
     zIndex: 0,
   },
-})
+  items: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flex: 1,
+    zIndex: 1,
+  },
+});

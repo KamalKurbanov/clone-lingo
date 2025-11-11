@@ -1,23 +1,48 @@
-import { router } from 'expo-router'
-import { useState } from 'react'
-import { View, StyleSheet, ScrollView, Button } from 'react-native'
-import * as Progress from 'react-native-progress'
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-
-import AlphabetGrid from '@/components/AlphabetGrid'
-import { BaseText } from '@/components/ui/BaseText'
+import { View, StyleSheet, ScrollView, Button } from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import AlphabetGrid from '@/components/AlphabetGrid';
+import { BaseText } from '@/components/ui/BaseText';
+import * as Progress from 'react-native-progress';
+import { useEffect, useState } from 'react';
+import { useUserStore } from '@/store/useUserStore';
 
 export default function AlphabetQuiz() {
-  const insets = useSafeAreaInsets()
-  const [progress, setProgress] = useState(0)
-  const [counter, setCounter] = useState({ total: 0, progress: 0 })
+  const { user, setActiveLang, activeLang } = useUserStore();
 
-  console.log('progress', progress)
+  const insets = useSafeAreaInsets();
+  const [progress, setProgress] = useState(0);
+  const [counter, setCounter] = useState({ total: 0, progress: 0 });
+
+  useEffect(() => {
+    if (activeLang?.code) {
+      setProgress(0);
+    }
+  }, [activeLang]);
+
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
+        {user &&
+          user.languages.length > 1 &&
+          user?.languages.map((lang) => (
+            <Button
+              title={lang.language.name}
+              key={lang.id}
+              onPress={() => {
+                setActiveLang(lang.language);
+                window.localStorage.setItem(
+                  'activeLang',
+                  JSON.stringify(lang.language)
+                );
+              }}
+            />
+          ))}
         <BaseText variant="headingM" style={styles.title}>
-          Лакский Алфавит
+          {activeLang?.name} Алфавит
         </BaseText>
         <Progress.Bar
           progress={progress}
@@ -39,39 +64,39 @@ export default function AlphabetQuiz() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     flex: 1,
     padding: 20,
+    backgroundColor: '#fff',
     width: '100%',
-  },
-  conunter: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 1,
-    width: 100,
   },
   header: {
-    alignItems: 'stretch',
     flexDirection: 'column',
+    alignItems: 'stretch',
     padding: 20,
     width: '100%',
+  },
+  title: {
+    textAlign: 'center',
+    marginBottom: 12,
   },
   progress: {
     flexDirection: 'row',
+    marginLeft: 12,
     flexGrow: 1,
     flexShrink: 0,
-    marginLeft: 12,
     minWidth: 300,
   },
-  title: {
-    marginBottom: 12,
-    textAlign: 'center',
+  conunter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    width: 100,
   },
-})
+});
 
-AlphabetQuiz.displayName = 'AlphabetQuiz'
+AlphabetQuiz.displayName = 'AlphabetQuiz';

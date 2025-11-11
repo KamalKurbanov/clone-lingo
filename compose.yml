@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: rn-web-app
+    ports:
+      - '${WEB_PORT:-80}:80'  # можно указать в .env, по умолчанию 80
+    volumes:
+      # Опционально: если вы хотите обновлять статику в реальном времени
+      # ВАЖНО: для этого в Dockerfile не должен быть этап сборки (RUN npm run build:web)
+      - ./dist:/usr/share/nginx/html:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+
+  # (опционально) Nginx Proxy Manager для прокси и SSL
+  # proxy:
+  #   image: jc21/nginx-proxy-manager:latest
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./data:/data
+  #     - ./letsencrypt:/etc/letsencrypt
+  #   networks:
+  #     - app-network
+  #   depends_on:
+  #     - web
+
+networks:
+  app-network:
+    driver: bridge

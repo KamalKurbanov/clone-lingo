@@ -17,6 +17,15 @@ export default [
   // 2. Конфигурация для React
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
+    languageOptions: {
+      ...reactNativePlugin.languageOptions,
+      globals: {
+        ...reactNativePlugin.languageOptions?.globals,
+        console: 'readonly',
+        window: 'readonly',
+        process: 'readonly',
+      },
+    },
     plugins: {
       react: reactPlugin,
       'react-hooks': reactHooksPlugin,

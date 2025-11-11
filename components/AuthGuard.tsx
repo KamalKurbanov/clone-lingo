@@ -1,28 +1,26 @@
 // components/AuthGuard.js
-import { useRouter } from 'expo-router'
-import React, { useEffect } from 'react'
-import { ActivityIndicator, View, StyleSheet } from 'react-native'
-
-import { checkAuth } from '../utils/authUtils'
+import React, { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useUserStore } from '@/store/useUserStore';
 
 export default function AuthGuard({ children }: any) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = React.useState(true) // Состояние загрузки
+  const router = useRouter();
+  const { isLoading, checkAuth, signIn } = useUserStore();
 
   useEffect(() => {
     const verifyAuth = async () => {
-      const isAuthenticated = await checkAuth() // Проверяем авторизацию
-      if (!isAuthenticated) {
-        router.replace('/sign-in') // Перенаправляем на страницу авторизации
+      const user = await checkAuth(); // Проверяем авторизацию
+      if (!user?.email) {
+        router.replace('/sign-in'); // Перенаправляем на страницу авторизации
+        return;
       }
-      setIsLoading(false) // Завершаем загрузку
-    }
 
-    verifyAuth()
-  }, 
-  
-  
-  [router])
+      signIn(user);
+    };
+
+    verifyAuth();
+  }, [router]);
 
   // Показываем спиннер, пока проверяется авторизация
   if (isLoading) {
@@ -30,18 +28,18 @@ export default function AuthGuard({ children }: any) {
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
       </View>
-    )
+    );
   }
 
   // Если авторизация успешна, отображаем дочерние компоненты
-  return children
+  return children;
 }
 
 const styles = StyleSheet.create({
   loaderContainer: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
-})
+});

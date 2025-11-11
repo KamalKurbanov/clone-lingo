@@ -1,75 +1,87 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useRouter } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  Button,
   StyleSheet,
   Alert,
   Image,
   ScrollView,
-} from 'react-native'
-import * as Progress from 'react-native-progress'
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+  Platform,
+} from 'react-native';
+import * as Progress from 'react-native-progress';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import { format } from 'date-fns';
 
-import { SettingsIcon } from '@/components/icons/SettingsIcon'
-import { BaseInput } from '@/components/ui/BaseInput'
-import { BaseText } from '@/components/ui/BaseText'
-import { IconButton } from '@/components/ui/IconButton'
-import { PrimaryButton } from '@/components/ui/PrimaryButton'
+import { SettingsIcon } from '@/components/icons/SettingsIcon';
+import { BaseInput } from '@/components/ui/BaseInput';
+import { BaseText } from '@/components/ui/BaseText';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { api } from '@/services/https';
+import { clearTokens } from '@/utils/secure';
+import { useUserStore } from '@/store/useUserStore';
+import AvatarUploader from '@/components/AvatarUploader';
 
 export default function Profile() {
-  const router = useRouter()
+  const { user } = useUserStore();
+
+  const router = useRouter();
   // Состояния для хранения данных пользователя
-  const [isEditing, setIsEditing] = useState(false) // Режим редактирования
-  const [name, setName] = useState('Иван Иванов') // ФИО
-  const [gender, setGender] = useState('Мужской') // Пол
-  const [age, setAge] = useState('25') // Возраст
-  const [email, setEmail] = useState('')
+  const [isEditing, setIsEditing] = useState(false); // Режим редактирования
+  const [name, setName] = useState('Иван Иванов'); // ФИО
+  const [gender, setGender] = useState('Мужской'); // Пол
+  const [age, setAge] = useState('25'); // Возраст
+  const [email, setEmail] = useState('');
 
   // Получаем отступы для безопасной области
-  const insets = useSafeAreaInsets()
+  const insets = useSafeAreaInsets();
 
   // Функция для сохранения изменений
   const handleSave = () => {
     if (!name || !gender || !age) {
-      Alert.alert('Ошибка', 'Заполните все поля')
-      return
+      Alert.alert('Ошибка', 'Заполните все поля');
+      return;
     }
-    setIsEditing(false)
-    Alert.alert('Успех', 'Профиль успешно обновлен')
-  }
+    setIsEditing(false);
+    Alert.alert('Успех', 'Профиль успешно обновлен');
+  };
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('user') // Удаляем данные пользователя
-      Alert.alert('Успех', 'Вы успешно вышли из аккаунта')
-      router.replace('/sign-in') // Переход на страницу авторизации
-    } catch (error) {
-      console.error('Ошибка при выходе:', error)
-      Alert.alert('Ошибка', 'Что-то пошло не так')
-    }
-  }
+      await api.post('/auth/logout');
 
-  useEffect(() => {
-    AsyncStorage.getItem('user')
-      .then(data => {
-        if (data) {
-          return JSON.parse(data)
-        }
-      })
-      .then(user => {
-        setEmail(user.email)
-        setName(user.name)
-        setAge(user.age)
-        setGender(user.gender)
-      })
-      .catch(err => {
-        console.log(err)
-      })
-  }, [])
+      if (Platform.OS !== 'web') {
+        clearTokens();
+      } else {
+        window.localStorage.removeItem('access_token');
+      }
+
+      Alert.alert('Успех', 'Вы успешно вышли из аккаунта');
+      router.replace('/sign-in'); // Переход на страницу авторизации
+    } catch (error) {
+      console.error('Ошибка при выходе:', error);
+      Alert.alert('Ошибка', 'Что-то пошло не так');
+    }
+  };
+
+  const handleImageSelect = async (uri: string, type: string, ext: string) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const formData = new FormData();
+    formData.append('file', blob, `${user?.id}.${ext}`);
+
+    const { data } = await api.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    await api.put(`/users/${user?.id}`, { avatarUrl: data.url });
+  };
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -84,34 +96,41 @@ export default function Profile() {
           <SettingsIcon />
         </View>
 
-        <View style={styles.infoAvatarContainer}>
-          <Image
-            style={styles.infoAvatar}
-            resizeMode="cover"
-            source={require('@/assets/images/avatar.png')}
-          />
-        </View>
+        <AvatarUploader
+          onImageSelect={handleImageSelect}
+          initialImageUri={process.env.EXPO_PUBLIC_BASE_URL! + user?.avatarUrl}
+        />
+
         <View style={styles.infoContainer}>
           <View style={styles.infoBody}>
             {!isEditing ? (
               <>
                 <BaseText variant="subtitle" style={styles.infoName}>
-                  {name}
+                  {user?.name}
                 </BaseText>
+
+                <BaseText
+                  variant="body"
+                  style={styles.infoAge}
+                  color="secondary"
+                >
+                  {user?.age}
+                </BaseText>
+
                 <BaseText
                   variant="body"
                   style={styles.infoEmail}
                   color="secondary"
                 >
-                  {email}
+                  {user?.email}
                 </BaseText>
-                {/* <BaseText variant='body' style={styles.infoAge} color='secondary'>{age}</BaseText> */}
                 <BaseText
                   variant="caption"
                   style={styles.infoDate}
                   color="secondary"
                 >
-                  Регистрация: апрель 2025
+                  Регистрация:{' '}
+                  {format(user?.createdAt || new Date(), 'MMMM dd')}
                 </BaseText>
                 <BaseText variant="bodyBold" style={styles.infoFriends}>
                   0 друзей
@@ -445,103 +464,183 @@ export default function Profile() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 // Стили
 const styles = StyleSheet.create({
-  achivementBody: {
-    alignItems: 'flex-start',
-    boxSizing: 'border-box',
-    flex: 1,
-    flexDirection: 'column',
-    gap: 10,
-    padding: 20,
-    width: '100%',
-  },
-
-  achivementHeader: {
-    flex: 1,
-    flexDirection: 'row',
+  header: {
     justifyContent: 'space-between',
-    width: '100%',
-  },
-
-  achivementImage: {
-    padding: 20,
-    paddingRight: 0,
-  },
-
-  achivementsList: {
-    borderColor: '#ccc',
-    borderRadius: 16,
-    borderWidth: 2,
-    gap: 10,
-    width: '100%',
-  },
-
-  achivementsListItem: {
+    alignItems: 'center',
     borderBottomColor: '#ccc',
     borderBottomWidth: 2,
+    padding: 10,
+    flexWrap: 'nowrap',
     flexDirection: 'row',
-    width: '100%',
-  },
-
-  achivementsListItemLast: {
-    borderBottomWidth: 0,
-  },
-
-  avatar: {
-    borderRadius: 16,
-    flexGrow: 1,
     marginBottom: 20,
   },
 
-  box: {
-    borderColor: '#ccc',
-    borderRadius: 16,
-    borderWidth: 2,
-    flex: 1,
-    padding: 16,
-  },
-
-  buttonContainer: {
-    marginBottom: 40,
-    marginTop: 20,
-  },
-
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
+  title: {
+    alignSelf: 'center',
+    alignContent: 'center',
     fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#ccc',
   },
 
-  container: {
-    backgroundColor: '#fff',
-    flex: 1,
-    padding: 20,
+  infoContainer: {
+    flexDirection: 'row',
   },
+
+  infoBody: {
+    flexDirection: 'column',
+    gap: 2,
+  },
+
+  infoName: {
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+    width: 'auto',
+  },
+
+  infoAge: { width: 'auto' },
+
+  infoEmail: {},
+
+  infoDate: {},
+
+  infoFriends: {
+    color: ' rgb(33, 150, 243)',
+  },
+
+  infoFlag: {
+    alignContent: 'center',
+  },
+
+  infoAvatarContainer: {
+    width: '100%',
+    height: 250,
+    borderRadius: 16,
+    overflow: 'hidden', // важно — чтобы скругление применялось ко всей картинке
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0', // опционально: фон на случай, если изображение не загрузилось
+    marginBottom: 20,
+  },
+  infoAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    resizeMode: 'cover',
+  },
+
   friends: {},
-
   friendsBg: {
     width: '100%',
   },
   friendsDesc: {
-    flex: 1,
-    justifyContent: 'center',
     textAlign: 'center',
     width: '100%',
+    flex: 1,
+    justifyContent: 'center',
   },
-  header: {
-    alignItems: 'center',
-    borderBottomColor: '#ccc',
-    borderBottomWidth: 2,
+  statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  statsGridItem: {
+    flexBasis: '47%',
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  statsImage: {
+    width: 16,
+    height: 20,
+  },
+  statsBody: {},
+  statsTitle: {
+    alignItems: 'flex-start',
+    top: -2,
+  },
+  statsDesc: {},
+  box: {
+    padding: 16,
+    borderRadius: 16,
+    borderColor: '#ccc',
+    borderWidth: 2,
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  info: {
+    fontSize: 16,
+    marginTop: 5,
     padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    backgroundColor: '#f9f9f9',
+  },
+  input: {
+    fontSize: 16,
+    marginTop: 5,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+  },
+  buttonContainer: {
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  primaryButton: {
+    backgroundColor: '#6CD96C', // Ярко-зеленый цвет
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25, // Закругленные углы
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5, // Для Android
+    marginBottom: 20,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: '#FFC107', // Ярко-желтый цвет
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5, // Для Android
+    marginBottom: 20,
+  },
+  secondaryButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
   },
   iconButton: {
     flexDirection: 'row',
@@ -557,167 +656,88 @@ const styles = StyleSheet.create({
     elevation: 5, // Для Android
   },
   iconButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#fff',
     marginLeft: 10,
   },
-  info: {
-    backgroundColor: '#f9f9f9',
-    borderColor: '#ccc',
-    borderRadius: 5,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 5,
-    padding: 10,
-  },
-  infoAge: {},
-  infoAvatar: {
+  avatar: {
+    flexGrow: 1,
     borderRadius: 16,
-    height: '100%',
-    resizeMode: 'cover',
-    width: '100%',
-  },
-  infoAvatarContainer: {
-    width: '100%',
-    height: 250,
-    borderRadius: 16,
-    overflow: 'hidden', // важно — чтобы скругление применялось ко всей картинке
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0', // опционально: фон на случай, если изображение не загрузилось
     marginBottom: 20,
-  },
-  infoBody: {
-    flexDirection: 'column',
-    gap: 2,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-  },
-  infoDate: {},
-  infoEmail: {},
-  infoFlag: {
-    alignContent: 'center',
-  },
-  infoFriends: {
-    color: ' rgb(33, 150, 243)',
-  },
-  infoName: {
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-  },
-  input: {
-    borderColor: '#ccc',
-    borderRadius: 5,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 5,
-    padding: 10,
-  },
-  invite: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  inviteBody: {
-    flexDirection: 'column',
-    flex: 1,
-    gap: 12,
-    width: '100%',
-  },
-  inviteButtonContainer: {},
-  inviteContainer: {
-    marginBottom: 20,
-    marginTop: 20,
-  },
-  inviteDescription: {
-    flex: 1,
-    width: '100%',
-  },
-  inviteImage: {
-    flexShrink: 0,
-    height: 50,
-    width: 56,
-  },
-  inviteTitle: {
-    fontSize: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  primaryButton: {
-    backgroundColor: '#6CD96C', // Ярко-зеленый цвет
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25, // Закругленные углы
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5, // Для Android
-    marginBottom: 20,
-  },
-  secondaryButton: {
-    backgroundColor: '#FFC107', // Ярко-желтый цвет
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5, // Для Android
-    marginBottom: 20,
-  },
-  secondaryButtonText: {
-    color: '#000',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
   section: {
     flexDirection: 'column',
     marginBottom: 20,
   },
-  sectionContent: {},
   sectionTitle: {
     marginBottom: 10,
   },
-  stats: {
+  sectionContent: {},
+  achivementsList: {
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    width: '100%',
+  },
+  achivementsListItem: {
+    flexDirection: 'row',
+    borderBottomColor: '#ccc',
+    borderBottomWidth: 2,
+    width: '100%',
+  },
+  achivementsListItemLast: {
+    borderBottomWidth: 0,
+  },
+  achivementImage: {
+    padding: 20,
+    paddingRight: 0,
+  },
+  achivementBody: {
+    padding: 20,
+    flex: 1,
+    boxSizing: 'border-box',
+    flexDirection: 'column',
     alignItems: 'flex-start',
+    gap: 10,
+    width: '100%',
+  },
+  achivementHeader: {
+    flex: 1,
+    width: '100%',
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
   },
 
-  statsBody: {},
-
-  statsDesc: {},
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: '16px',
+  inviteContainer: {
+    marginTop: 20,
+    marginBottom: 20,
   },
-  statsGridItem: {
-    flexBasis: '47%',
-    flexGrow: 0,
+
+  invite: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inviteImage: {
+    width: 56,
+    height: 50,
     flexShrink: 0,
   },
-  statsImage: {
-    height: 20,
-    width: 16,
+  inviteBody: {
+    flexDirection: 'column',
+    gap: 12,
+    flex: 1,
+    width: '100%',
+  },
+  inviteTitle: {
+    fontSize: 24,
   },
 
-  statsTitle: {
-    alignItems: 'flex-start',
-    top: -2,
+  inviteDescription: {
+    flex: 1,
+    width: '100%',
   },
 
-  title: {
-    alignContent: 'center',
-    alignSelf: 'center',
-    color: '#ccc',
-    fontWeight: 'bold',
-  },
-})
+  inviteButtonContainer: {},
+});
