@@ -10,7 +10,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const publicPaths = ['/auth/register', '/auth/login', '/auth/refresh'];
+  const publicPaths = ['/api/auth/register', '/api/auth/login', '/api/auth/refresh'];
 
   const isPublic = publicPaths.some((path) => config.url?.startsWith(path));
 

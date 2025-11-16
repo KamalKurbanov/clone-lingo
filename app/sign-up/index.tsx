@@ -23,7 +23,7 @@ export default function SignUp() {
     const { data: payload } = await api.post<{
       access_token: string;
       refresh_token: string;
-    }>('/auth/register', data);
+    }>('/api/auth/register', data);
 
     if (Platform.OS !== 'web') {
       await saveTokens(payload.access_token, payload.refresh_token);
