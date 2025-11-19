@@ -12,7 +12,7 @@ export default function AuthGuard({ children }: any) {
     const verifyAuth = async () => {
       const user = await checkAuth(); // Проверяем авторизацию
       if (!user?.email) {
-        router.replace('/sign-in'); // Перенаправляем на страницу авторизации
+        // router.replace('/sign-in'); // Перенаправляем на страницу авторизации
         return;
       }
 
